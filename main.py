@@ -2,6 +2,25 @@ from jira import JIRA
 import re
 import dateutil.parser
 
+def searchIssues(jql,fields):
+    all_issues = []
+
+    block_size = 1000
+    block_num = 0
+    while True:
+        start_idx = block_num * block_size
+        issues = jira.search_issues(
+            jql,
+            start_idx,
+            block_size,
+            fields=fields)
+        if len(issues) == 0:
+            # Retrieve issues until there are no more to come
+            break
+        block_num += 1
+        all_issues = all_issues + issues
+    return all_issues
+
 def getSprintName(issue):
     try:
         sname = ""
@@ -23,23 +42,12 @@ nameMap = {field['name']:field['id'] for field in jira.fields()}
 
 file = open("xd.csv","w")
 
+issues = searchIssues(
+    "status = Done AND 'Story Points' is not EMPTY AND project != 'Zakupy Fenige' AND project != Urlopy AND resolved > startOfMonth(-6)",
+    "Story Points,project,resolutiondate,customfield_10004"
+)
 
-all_issues = []
-
-block_size = 1000
-block_num = 0
-while True:
-    start_idx = block_num*block_size
-    issues = jira.search_issues("status = Done AND 'Story Points' is not EMPTY AND project != 'Zakupy Fenige' AND project != Urlopy AND resolved > startOfMonth(-6)",
-         start_idx,
-         block_size,
-         fields="Story Points,project,resolutiondate,customfield_10004")
-    if len(issues) == 0:
-        # Retrieve issues until there are no more to come
-        break
-    block_num += 1
-    all_issues = all_issues+issues
-for issue in all_issues:
+for issue in issues:
     toWrite = []
 
     toWrite.append(str(issue.key))
