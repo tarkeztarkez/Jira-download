@@ -9,10 +9,11 @@ from jira import JIRA
 import re
 import dateutil.parser
 from openpyxl import Workbook
+import pandas as pd
+import xlsxwriter
 
 def searchIssues(jql,fields,block_size=1000):
     all_issues = []
-
     block_num = 0
     while True:
         start_idx = block_num * block_size
@@ -40,30 +41,50 @@ def getSprintName(issue):
     except:
         return ""
 
+def getTeamName(issue):
+    if str(issue.fields.project) == "OTPSRB":
+        return "Merchant"
+    elif str(issue.fields.project) == "FENIGE":
+        return "Administracja"
+    else:
+        teamName = re.sub("^\d+\s|\s\d+\s|\s\d+$", "", getSprintName(issue))
+        teamName = teamName.lstrip(" Sprint")
+        return teamName
+
 jira = JIRA("https://jira.upaid.pl",basic_auth=("upaid","Y9U378v4azofRscPVfB"),options=options)
 nameMap = {field['name']:field['id'] for field in jira.fields()}
-
-wb = Workbook()
-sheet = wb.active
 
 issues = searchIssues(
     "status = Done AND 'Story Points' is not EMPTY AND project != 'Zakupy Fenige' AND project != Urlopy AND resolved > startOfMonth(-6) ORDER BY resolved DESC",
     "Story Points,project,resolutiondate,customfield_10004"
 )
 
+
+data = {
+    "Key": [],
+    "Project": [],
+    "Story Points": [],
+    "Team Name": [],
+    "Resolve Date": []
+}
+
 for issue in issues:
-    toWrite = []
+    teamName = getTeamName(issue)
+    if teamName == "":
+        continue
+    data.get("Team Name").append(getTeamName(issue))
 
-    toWrite.append(str(issue.key))
-    toWrite.append(str(issue.fields.project))
-    toWrite.append(str(getattr(issue.fields,nameMap["Story Points"])).replace(".",","))
-
-    toWrite.append(getSprintName(issue))
+    data.get("Key").append(str(issue.key))
+    data.get("Project").append(str(issue.fields.project.name+ " ("+str(issue.fields.project)+")"))
+    data.get("Story Points").append(float(getattr(issue.fields,nameMap["Story Points"])))
 
     date = dateutil.parser.parse(issue.fields.resolutiondate)
     date = date.strftime("%b %Y")
-    toWrite.append(date)
+    data.get("Resolve Date").append(date)
 
-    sheet.append(toWrite)
-
-wb.save("xd.xlsx")
+#TODO: Dynamic report name
+data = pd.DataFrame(data,columns=["Key","Project","Story Points","Team Name","Resolve Date"])
+table = pd.pivot_table(data,values="Story Points",index=["Project","Team Name"],columns="Resolve Date",aggfunc="sum")
+writer = pd.ExcelWriter("xd.xlsx",engine='xlsxwriter')
+table.to_excel(writer,sheet_name="Sheet1")
+writer.save()
