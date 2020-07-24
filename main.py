@@ -2,10 +2,9 @@ from jira import JIRA
 import re
 import dateutil.parser
 
-def searchIssues(jql,fields):
+def searchIssues(jql,fields,block_size=1000):
     all_issues = []
 
-    block_size = 1000
     block_num = 0
     while True:
         start_idx = block_num * block_size
