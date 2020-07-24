@@ -1,6 +1,14 @@
+options = {
+    "cookies":{
+        "JSESSIONID": "F54263E662CD279F253567CF57F782B6"
+    }
+}
+
+
 from jira import JIRA
 import re
 import dateutil.parser
+from openpyxl import Workbook
 
 def searchIssues(jql,fields,block_size=1000):
     all_issues = []
@@ -13,9 +21,11 @@ def searchIssues(jql,fields,block_size=1000):
             start_idx,
             block_size,
             fields=fields)
+
         if len(issues) == 0:
             # Retrieve issues until there are no more to come
             break
+
         block_num += 1
         all_issues = all_issues + issues
     return all_issues
@@ -30,19 +40,14 @@ def getSprintName(issue):
     except:
         return ""
 
-options = {
-    "cookies":{
-        "JSESSIONID": "32297DEEB683F6D90F44C19B57D2C84B"
-    }
-}
-
 jira = JIRA("https://jira.upaid.pl",basic_auth=("upaid","Y9U378v4azofRscPVfB"),options=options)
 nameMap = {field['name']:field['id'] for field in jira.fields()}
 
-file = open("xd.csv","w")
+wb = Workbook()
+sheet = wb.active
 
 issues = searchIssues(
-    "status = Done AND 'Story Points' is not EMPTY AND project != 'Zakupy Fenige' AND project != Urlopy AND resolved > startOfMonth(-6)",
+    "status = Done AND 'Story Points' is not EMPTY AND project != 'Zakupy Fenige' AND project != Urlopy AND resolved > startOfMonth(-6) ORDER BY resolved DESC",
     "Story Points,project,resolutiondate,customfield_10004"
 )
 
@@ -59,7 +64,6 @@ for issue in issues:
     date = date.strftime("%b %Y")
     toWrite.append(date)
 
-    print(";".join(toWrite))
-    file.write(";".join(toWrite)+"\n")
+    sheet.append(toWrite)
 
-file.close()
+wb.save("xd.xlsx")
