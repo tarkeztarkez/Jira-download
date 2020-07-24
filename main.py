@@ -10,7 +10,6 @@ import re
 import dateutil.parser
 from openpyxl import Workbook
 import pandas as pd
-import xlsxwriter
 
 def searchIssues(jql,fields,block_size=1000):
     all_issues = []
@@ -27,6 +26,7 @@ def searchIssues(jql,fields,block_size=1000):
             # Retrieve issues until there are no more to come
             break
 
+        print("GET: "+str(issues))
         block_num += 1
         all_issues = all_issues + issues
     return all_issues
@@ -49,16 +49,19 @@ def getTeamName(issue):
     else:
         teamName = re.sub("^\d+\s|\s\d+\s|\s\d+$", "", getSprintName(issue))
         teamName = teamName.lstrip(" Sprint")
+        if teamName == "":
+            teamName = "No team"
         return teamName
 
 jira = JIRA("https://jira.upaid.pl",basic_auth=("upaid","Y9U378v4azofRscPVfB"),options=options)
 nameMap = {field['name']:field['id'] for field in jira.fields()}
 
+print("Getting issues...")
 issues = searchIssues(
     "status = Done AND 'Story Points' is not EMPTY AND project != 'Zakupy Fenige' AND project != Urlopy AND resolved > startOfMonth(-6) ORDER BY resolved DESC",
     "Story Points,project,resolutiondate,customfield_10004"
 )
-
+print("Getting issues... DONE")
 
 data = {
     "Key": [],
@@ -79,12 +82,22 @@ for issue in issues:
     data.get("Story Points").append(float(getattr(issue.fields,nameMap["Story Points"])))
 
     date = dateutil.parser.parse(issue.fields.resolutiondate)
-    date = date.strftime("%b %Y")
+    date = date.strftime("%m.%Y")
     data.get("Resolve Date").append(date)
 
+    print("SAVE: "+issue.key)
+
 #TODO: Dynamic report name
+print("Creating DataFrame...")
 data = pd.DataFrame(data,columns=["Key","Project","Story Points","Team Name","Resolve Date"])
+
+print("Creating PivotTable...")
 table = pd.pivot_table(data,values="Story Points",index=["Project","Team Name"],columns="Resolve Date",aggfunc="sum")
+table2 = pd.pivot_table(data,values="Story Points",index=["Team Name","Project"],columns="Resolve Date",aggfunc="sum")
+
+print("Writing to Excel...")
 writer = pd.ExcelWriter("xd.xlsx",engine='xlsxwriter')
 table.to_excel(writer,sheet_name="Sheet1")
+table2.to_excel(writer,sheet_name="Sheet2")
 writer.save()
+print("ALL DONE!!!")
