@@ -8,7 +8,7 @@ options = {
 from jira import JIRA
 import re
 import dateutil.parser
-from openpyxl import Workbook
+import openpyxl
 import pandas as pd
 
 def searchIssues(jql,fields,block_size=1000):
@@ -96,8 +96,14 @@ table = pd.pivot_table(data,values="Story Points",index=["Project","Team Name"],
 table2 = pd.pivot_table(data,values="Story Points",index=["Team Name","Project"],columns="Resolve Date",aggfunc="sum")
 
 print("Writing to Excel...")
-writer = pd.ExcelWriter("xd.xlsx",engine='xlsxwriter')
+fname = "xd.xlsx"
+
+writer = pd.ExcelWriter(fname,engine='openpyxl')
 table.to_excel(writer,sheet_name="Sheet1")
 table2.to_excel(writer,sheet_name="Sheet2")
 writer.save()
+
+wb = openpyxl.load_workbook(filename=fname)
+s1 = wb.get_sheet_by_name["Sheet1"]
+
 print("ALL DONE!!!")
