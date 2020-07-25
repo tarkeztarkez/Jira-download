@@ -1,10 +1,4 @@
-options = {
-    "cookies":{
-        "JSESSIONID": "F54263E662CD279F253567CF57F782B6"
-    }
-}
-
-
+from pathlib import Path
 from jira import JIRA
 import re
 import dateutil.parser
@@ -53,7 +47,37 @@ def getTeamName(issue):
             teamName = "No team"
         return teamName
 
-jira = JIRA("https://jira.upaid.pl",basic_auth=("upaid","Y9U378v4azofRscPVfB"),options=options)
+config = Path("config.txt")
+if config.exists():
+    file = config.open("r")
+    for line in file.readlines():
+        if line.startswith("JSESSIONID"):
+            sessionid = line.lstrip("JSESSIONID=").rstrip("\n")
+        elif line.startswith("BASIC_LOGIN"):
+            basic_login = line.lstrip("BASIC_LOGIN=").rstrip("\n")
+        elif line.startswith("BASIC_PASS"):
+            basic_pass = line.lstrip("BASIC_PASS=").rstrip("\n")
+        elif line.startswith("URL"):
+            url = line.lstrip("URL=").rstrip("\n")
+    file.close()
+else:
+    print("No file config.txt")
+    file = config.open("w")
+    file.write("JSESSIONID=\n")
+    file.write("BASIC_LOGIN=\n")
+    file.write("BASIC_PASS=\n")
+    file.write("URL=")
+    file.close()
+    print("Created file config.txt. Fill it up with credentials!")
+    exit()
+
+options = {
+    "cookies":{
+        "JSESSIONID": sessionid
+    }
+}
+
+jira = JIRA(url,basic_auth=(basic_login,basic_pass),options=options)
 nameMap = {field['name']:field['id'] for field in jira.fields()}
 
 print("Getting issues...")
@@ -104,6 +128,6 @@ table2.to_excel(writer,sheet_name="Sheet2")
 writer.save()
 
 wb = openpyxl.load_workbook(filename=fname)
-s1 = wb.get_sheet_by_name["Sheet1"]
+s1 = wb["Sheet1"]
 
 print("ALL DONE!!!")
