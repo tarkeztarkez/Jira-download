@@ -127,7 +127,4 @@ table.to_excel(writer,sheet_name="Sheet1")
 table2.to_excel(writer,sheet_name="Sheet2")
 writer.save()
 
-wb = openpyxl.load_workbook(filename=fname)
-s1 = wb["Sheet1"]
-
 print("ALL DONE!!!")
